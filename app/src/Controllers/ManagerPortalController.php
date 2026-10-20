@@ -11,6 +11,7 @@ use YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\Security\Group;
@@ -65,7 +66,7 @@ class ManagerPortalController extends Controller
 
     // ── Overview ──────────────────────────────────────────────────────────
 
-    public function index(HTTPRequest $request): string
+    public function index(HTTPRequest $request): DBHTMLText
     {
         $today   = date('Y-m-d');
         $manager = Security::getCurrentUser();
@@ -88,7 +89,7 @@ class ManagerPortalController extends Controller
 
     // ── Workers list ──────────────────────────────────────────────────────
 
-    public function workers(HTTPRequest $request): string
+    public function workers(HTTPRequest $request): DBHTMLText
     {
         $manager = Security::getCurrentUser();
         $workers = $this->getAreaWorkers($manager);
@@ -119,7 +120,7 @@ class ManagerPortalController extends Controller
 
     // ── Revir status ──────────────────────────────────────────────────────
 
-    public function revirs(HTTPRequest $request): string
+    public function revirs(HTTPRequest $request): DBHTMLText
     {
         $manager = Security::getCurrentUser();
         $revirs  = $this->getAreaRevirs($manager);
@@ -155,7 +156,7 @@ class ManagerPortalController extends Controller
 
     // ── Shift swaps ───────────────────────────────────────────────────────
 
-    public function swaps(HTTPRequest $request): string
+    public function swaps(HTTPRequest $request): DBHTMLText
     {
         $manager = Security::getCurrentUser();
         $swaps   = $this->getPendingSwaps($manager);
@@ -181,7 +182,7 @@ class ManagerPortalController extends Controller
             return $this->jsonResponse(['success' => false, 'error' => 'Not found'], 404);
         }
 
-        if (!$swap->isPending()) {
+        if ($swap->Status !== 'Pending') {
             return $this->jsonResponse(['success' => false, 'error' => 'Already processed'], 409);
         }
 
@@ -193,7 +194,7 @@ class ManagerPortalController extends Controller
 
     // ── Minijob risk ──────────────────────────────────────────────────────
 
-    public function minijob(HTTPRequest $request): string
+    public function minijob(HTTPRequest $request): DBHTMLText
     {
         $manager = Security::getCurrentUser();
         $workers = $this->getAreaWorkers($manager);
