@@ -1,0 +1,25 @@
+SilverStripe\Security\Member:
+  worker1:
+    FirstName: Anna
+    Surname: Muster
+    Email: worker1@test.local
+  worker2:
+    FirstName: Kein
+    Surname: Auftrag
+    Email: worker2@test.local
+
+YouWillLikeIT\Cleaning\DataObjects\CleaningObject:
+  obj1:
+    Name: Testgebäude
+
+YouWillLikeIT\Cleaning\DataObjects\Revir:
+  revir1:
+    Name: Revir Erdgeschoss
+    CleaningObjectID: =>YouWillLikeIT\Cleaning\DataObjects\CleaningObject.obj1
+
+YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment:
+  assign1:
+    WorkerID: =>SilverStripe\Security\Member.worker1
+    RevirID: =>YouWillLikeIT\Cleaning\DataObjects\Revir.revir1
+    AssignedDate: '2026-06-15'
+    Status: Confirmed

@@ -1,0 +1,62 @@
+---
+Name: cleaningsaas-v5
+After:
+  - 'framework/*'
+  - 'cleaningsaas'
+---
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+YouWillLikeIT\Cleaning\Middleware\RateLimitMiddleware:
+  rules:
+    # Photo upload: strictly throttled (large payloads, potential abuse)
+    - prefix: 'portal/photo'
+      limit: 30
+      window: 60
+    # Revir QR scan: per hour (physical scanning, not a web form)
+    - prefix: 'revir-qr/'
+      limit: 30
+      window: 3600
+    # Manager API: per minute
+    - prefix: 'manager/api/'
+      limit: 60
+      window: 60
+    # General portal: generous (normal browsing)
+    - prefix: 'portal/'
+      limit: 120
+      window: 60
+
+# ── Inject rate limiter into HTTP pipeline ────────────────────────────────────
+SilverStripe\Control\HTTPApplication:
+  middlewares:
+    - YouWillLikeIT\Cleaning\Middleware\RateLimitMiddleware
+
+# ── Bulk notification (Twilio credentials via env vars preferred) ─────────────
+YouWillLikeIT\Cleaning\Services\BulkNotificationService:
+  bulk_batch_size: 50
+  # Override via environment variables for security:
+  # TWILIO_ACCOUNT_SID=ACxxxx
+  # TWILIO_AUTH_TOKEN=your_token
+  # TWILIO_FROM_NUMBER=+49123456789
+  # TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+
+# ── Weekly assignment job ──────────────────────────────────────────────────────
+# Registered automatically on /dev/build when queuedjobs is installed.
+# Manual bootstrap via CLI:
+#   sake dev/tasks/YouWillLikeIT-Cleaning-Tasks-GenerateWeeklyAssignmentsTask
+# Queued job self-requeues every Sunday at 22:00.
+
+# ── QueuedJobs database config (optional, defaults to SilverStripe ORM) ───────
+# Symbiote\QueuedJobs\Services\QueuedJobService:
+#   default_job_monitor_expiry: 3600
+
+# ── Audit log – also attach to Revir check-ins (immutable, no onAfterWrite) ───
+# RevirCheckIn is already immutable; no AuditExtension needed.
+
+# ── AssignmentPhoto: image size constraints ────────────────────────────────────
+SilverStripe\Assets\Upload_Validator:
+  allowed_extensions:
+    - jpg
+    - jpeg
+    - png
+    - webp
+    - heic

@@ -1,0 +1,31 @@
+---
+Name: cleaningsaas-routes-v5
+After:
+  - 'framework/routes'
+  - 'cleaningsaas-routes'
+---
+SilverStripe\Control\Director:
+  rules:
+    # ── v5 new routes ──────────────────────────────────────────────────────
+    # Revir QR check-in (location proof)
+    'revir-qr/$Action/$Token': 'YouWillLikeIT\Cleaning\Controllers\RevirQRController'
+
+    # Photo upload/list/delete for worker assignments
+    'portal/photo/$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\PhotoUploadController'
+
+    # iCal calendar feed (served as .ics)
+    'portal/calendar.ics': 'YouWillLikeIT\Cleaning\Controllers\ICalController'
+    'portal/calendar/$Action': 'YouWillLikeIT\Cleaning\Controllers\ICalController'
+
+    # Area manager portal
+    'manager/$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\ManagerPortalController'
+
+    # ── v4 routes (kept here for single-file override clarity) ────────────
+    # These duplicate v4/routes.yml and take precedence via After ordering.
+    'portal//$Action/$ID/$OtherID': 'YouWillLikeIT\Cleaning\Controllers\WorkerPortalController'
+    'client//$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\ClientPortalController'
+    'qr-login//$Action': 'YouWillLikeIT\Cleaning\Controllers\QRLoginController'
+    'api/checklist//$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\ChecklistApiController'
+    'api/rating//$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\RatingApiController'
+    'api/timetrack//$Action/$ID': 'YouWillLikeIT\Cleaning\Controllers\TimeTrackingApiController'
+    'lang/$Locale': 'YouWillLikeIT\Cleaning\Controllers\LocaleSwitchController'

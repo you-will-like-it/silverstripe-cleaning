@@ -1,0 +1,31 @@
+SilverStripe\Security\Member:
+  worker1:
+    FirstName: Anna
+    Surname: Muster
+    Email: worker1@test.local
+  worker2:
+    FirstName: Bob
+    Surname: Kein
+    Email: worker2@test.local
+
+YouWillLikeIT\Cleaning\DataObjects\CleaningObject:
+  obj1:
+    Name: Bürokomplex Nord
+    IsActive: 1
+
+YouWillLikeIT\Cleaning\DataObjects\Revir:
+  revir1:
+    Name: Revir OG1
+    IsActive: 1
+    CleaningObjectID: =>YouWillLikeIT\Cleaning\DataObjects\CleaningObject.obj1
+    AssignedWorkerID: =>SilverStripe\Security\Member.worker1
+  revir2:
+    Name: Revir OG2 (unbesetzt)
+    IsActive: 1
+    CleaningObjectID: =>YouWillLikeIT\Cleaning\DataObjects\CleaningObject.obj1
+
+YouWillLikeIT\Cleaning\DataObjects\CleaningSchedule:
+  schedule1:
+    DaysOfWeek: 'Mon,Tue,Wed,Thu,Fri'
+    IsActive: 1
+    CleaningObjectID: =>YouWillLikeIT\Cleaning\DataObjects\CleaningObject.obj1
