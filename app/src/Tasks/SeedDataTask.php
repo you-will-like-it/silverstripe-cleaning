@@ -13,14 +13,7 @@ use SilverStripe\Security\Permission;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
-use YouWillLikeIT\Cleaning\DataObjects\CleaningObject;
-use YouWillLikeIT\Cleaning\DataObjects\CleaningSchedule;
-use YouWillLikeIT\Cleaning\DataObjects\ClientRating;
-use YouWillLikeIT\Cleaning\DataObjects\Revir;
 use YouWillLikeIT\Cleaning\DataObjects\RevirCheckIn;
-use YouWillLikeIT\Cleaning\DataObjects\ShiftSwapRequest;
-use YouWillLikeIT\Cleaning\DataObjects\TimeTracking;
-use YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment;
 
 /**
  * SeedDataTask — popunjava bazu realističnim demo podacima za razvoj i testiranje.
@@ -33,6 +26,10 @@ use YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment;
  * Opcije:
  *   --confirm      Obavezno — zaštita od slučajnog pokretanja
  *   --keep-users   Ne briše postojeće korisnike/grupe
+ *
+ * DataObjecti koji nisu dio ovog modula (CleaningObject, Revir, WorkerAssignment,
+ * itd.) se učitavaju dinamički putem class_exists() — task se gracefully prilagođava
+ * onome što je dostupno u instalaciji.
  */
 class SeedDataTask extends BuildTask
 {
@@ -46,13 +43,25 @@ class SeedDataTask extends BuildTask
     /** @var array<string, Group> */
     private array $groups = [];
 
-    /** @var array<string, CleaningObject> */
+    /** @var array<string, object> CleaningObject instances */
     private array $objects = [];
 
-    /** @var array<string, Revir> */
+    /** @var array<string, object> Revir instances */
     private array $revirs = [];
 
     private PolyOutput $out;
+
+    /**
+     * FQCN za DataObjecte koji žive u glavnoj aplikaciji (ne u modulu).
+     * Mijenjaj ove konstante ako tvoja aplikacija koristi drugačiji namespace.
+     */
+    private const CLASS_CLEANING_OBJECT  = 'YouWillLikeIT\\Cleaning\\DataObjects\\CleaningObject';
+    private const CLASS_REVIR            = 'YouWillLikeIT\\Cleaning\\DataObjects\\Revir';
+    private const CLASS_WORKER_ASSIGN    = 'YouWillLikeIT\\Cleaning\\DataObjects\\WorkerAssignment';
+    private const CLASS_CLEANING_SCHED   = 'YouWillLikeIT\\Cleaning\\DataObjects\\CleaningSchedule';
+    private const CLASS_TIME_TRACKING    = 'YouWillLikeIT\\Cleaning\\DataObjects\\TimeTracking';
+    private const CLASS_SHIFT_SWAP       = 'YouWillLikeIT\\Cleaning\\DataObjects\\ShiftSwapRequest';
+    private const CLASS_CLIENT_RATING    = 'YouWillLikeIT\\Cleaning\\DataObjects\\ClientRating';
 
     public function getOptions(): array
     {
@@ -91,15 +100,45 @@ class SeedDataTask extends BuildTask
 
         $output->writeln('');
         $output->writeln('Done. Login credentials:');
-        $output->writeln('  super@reinigung.de        / Demo1234!  (SuperAdmin)');
-        $output->writeln('  admin@reinigung.de        / Demo1234!  (CompanyAdmin)');
-        $output->writeln('  manager@reinigung.de      / Demo1234!  (AreaManager)');
-        $output->writeln('  anna.mueller@reinigung.de / Demo1234!  (Worker)');
-        $output->writeln('  thomas.weber@reinigung.de / Demo1234!  (Worker)');
-        $output->writeln('  fatima.yilmaz@reinigung.de/ Demo1234!  (Worker)');
-        $output->writeln('  kunde@firma-mustermann.de / Demo1234!  (Client)');
+        $output->writeln('  super@reinigung.de         / Demo1234!  (SuperAdmin)');
+        $output->writeln('  admin@reinigung.de         / Demo1234!  (CompanyAdmin)');
+        $output->writeln('  manager@reinigung.de       / Demo1234!  (AreaManager)');
+        $output->writeln('  anna.mueller@reinigung.de  / Demo1234!  (Worker)');
+        $output->writeln('  thomas.weber@reinigung.de  / Demo1234!  (Worker)');
+        $output->writeln('  fatima.yilmaz@reinigung.de / Demo1234!  (Worker)');
+        $output->writeln('  kunde@firma-mustermann.de  / Demo1234!  (Client)');
 
         return Command::SUCCESS;
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Kreira instancu DataObjecta ako klasa postoji; logira skip ako ne postoji.
+     */
+    private function makeObject(string $class): ?object
+    {
+        if (!class_exists($class)) {
+            $short = substr($class, strrpos($class, '\\') + 1);
+            $this->out->writeln("  SKIP   {$short} class not found — skipping section");
+            return null;
+        }
+
+        return $class::create();
+    }
+
+    /**
+     * Dohvati DataList za klasu; null ako klasa ne postoji.
+     *
+     * @return \SilverStripe\ORM\DataList<\SilverStripe\ORM\DataObject>|null
+     */
+    private function getList(string $class): ?\SilverStripe\ORM\DataList
+    {
+        if (!class_exists($class)) {
+            return null;
+        }
+
+        return $class::get();
     }
 
     // ─── Clear ────────────────────────────────────────────────────────────────
@@ -108,18 +147,19 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Clearing existing module data...');
 
-        foreach ([
-            ClientRating::class,
-            ShiftSwapRequest::class,
+        $classes = [
+            self::CLASS_CLIENT_RATING,
+            self::CLASS_SHIFT_SWAP,
             RevirCheckIn::class,
-            TimeTracking::class,
-            WorkerAssignment::class,
-            CleaningSchedule::class,
-            Revir::class,
-            CleaningObject::class,
-        ] as $class) {
+            self::CLASS_TIME_TRACKING,
+            self::CLASS_WORKER_ASSIGN,
+            self::CLASS_CLEANING_SCHED,
+            self::CLASS_REVIR,
+            self::CLASS_CLEANING_OBJECT,
+        ];
+
+        foreach ($classes as $class) {
             if (class_exists($class)) {
-                /** @phpstan-ignore-next-line */
                 $class::get()->removeAll();
             }
         }
@@ -143,11 +183,11 @@ class SeedDataTask extends BuildTask
         $this->out->writeln('Creating groups...');
 
         $defs = [
-            'super-admin'   => ['Super Admin',    'SUPER_ADMIN'],
-            'company-admin' => ['Company Admin',  'COMPANY_ADMIN'],
-            'area-manager'  => ['Area Manager',   'AREA_MANAGER'],
-            'worker'        => ['Worker',         'WORKER'],
-            'client'        => ['Client',         'CLIENT'],
+            'super-admin'   => ['Super Admin',   'SUPER_ADMIN'],
+            'company-admin' => ['Company Admin', 'COMPANY_ADMIN'],
+            'area-manager'  => ['Area Manager',  'AREA_MANAGER'],
+            'worker'        => ['Worker',        'WORKER'],
+            'client'        => ['Client',        'CLIENT'],
         ];
 
         foreach ($defs as $code => [$title, $perm]) {
@@ -224,13 +264,21 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating cleaning objects...');
 
+        if (!class_exists(self::CLASS_CLEANING_OBJECT)) {
+            $this->out->writeln('  SKIP   CleaningObject class not found');
+            return;
+        }
+
+        $class = self::CLASS_CLEANING_OBJECT;
+
         $defs = [
-            'buerohaus_nord'  => ['Bürohaus Nord',          'Kantstraße 45',    '10627', 'Berlin'],
-            'einkaufszentrum' => ['Einkaufszentrum Mitte',  'Alexanderplatz 3', '10178', 'Berlin'],
+            'buerohaus_nord'  => ['Bürohaus Nord',         'Kantstraße 45',    '10627', 'Berlin'],
+            'einkaufszentrum' => ['Einkaufszentrum Mitte', 'Alexanderplatz 3', '10178', 'Berlin'],
         ];
 
         foreach ($defs as $key => [$name, $street, $zip, $city]) {
-            $obj           = CleaningObject::create();
+            /** @var \SilverStripe\ORM\DataObject $obj */
+            $obj           = $class::create();
             $obj->Name     = $name;
             $obj->IsActive = true;
             if ($obj->hasField('Street'))  $obj->Street  = $street;
@@ -254,6 +302,13 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating revirs...');
 
+        if (!class_exists(self::CLASS_REVIR)) {
+            $this->out->writeln('  SKIP   Revir class not found');
+            return;
+        }
+
+        $class = self::CLASS_REVIR;
+
         $defs = [
             'erdgeschoss'   => ['Bürohaus Nord — Erdgeschoss', 'buerohaus_nord',  'worker1', 450.0],
             'obergeschoss1' => ['Bürohaus Nord — 1. OG',       'buerohaus_nord',  'worker2', 380.0],
@@ -262,7 +317,8 @@ class SeedDataTask extends BuildTask
         ];
 
         foreach ($defs as $key => [$name, $objKey, $workerKey, $area]) {
-            $revir           = Revir::create();
+            /** @var \SilverStripe\ORM\DataObject $revir */
+            $revir           = $class::create();
             $revir->Name     = $name;
             $revir->IsActive = true;
 
@@ -271,9 +327,9 @@ class SeedDataTask extends BuildTask
                 $revir->CleaningObjectID = $obj->ID;
             }
 
-            if ($workerKey && $revir->hasField('AssignedWorkerID')) {
+            if ($workerKey) {
                 $worker = $this->members[$workerKey] ?? null;
-                if ($worker) {
+                if ($worker && $revir->hasField('AssignedWorkerID')) {
                     $revir->AssignedWorkerID = $worker->ID;
                 }
             }
@@ -302,15 +358,22 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating schedules...');
 
+        if (!class_exists(self::CLASS_CLEANING_SCHED)) {
+            $this->out->writeln('  SKIP   CleaningSchedule class not found');
+            return;
+        }
+
+        $class = self::CLASS_CLEANING_SCHED;
+
         $defs = [
             ['buerohaus_nord',  'Mon,Tue,Wed,Thu,Fri', '07:00:00', '10:00:00'],
             ['einkaufszentrum', 'Mon,Wed,Fri,Sat',     '06:00:00', '09:30:00'],
         ];
 
         foreach ($defs as [$objKey, $days, $start, $end]) {
-            $schedule           = CleaningSchedule::create();
+            /** @var \SilverStripe\ORM\DataObject $schedule */
+            $schedule           = $class::create();
             $schedule->IsActive = true;
-
             if ($schedule->hasField('DaysOfWeek')) $schedule->DaysOfWeek = $days;
             if ($schedule->hasField('StartTime'))  $schedule->StartTime  = $start;
             if ($schedule->hasField('EndTime'))    $schedule->EndTime    = $end;
@@ -331,6 +394,12 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating assignments for current week...');
 
+        if (!class_exists(self::CLASS_WORKER_ASSIGN)) {
+            $this->out->writeln('  SKIP   WorkerAssignment class not found');
+            return;
+        }
+
+        $class  = self::CLASS_WORKER_ASSIGN;
         $monday = new DateTime('monday this week');
 
         // [revir_key, worker_key, day_offset, status]
@@ -349,6 +418,7 @@ class SeedDataTask extends BuildTask
             ['einkauf_west',  'worker3', 5, 'Pending'],
         ];
 
+        $count = 0;
         foreach ($defs as [$revirKey, $workerKey, $offset, $status]) {
             $date   = (clone $monday)->modify("+{$offset} days");
             $revir  = $this->revirs[$revirKey] ?? null;
@@ -358,15 +428,17 @@ class SeedDataTask extends BuildTask
                 continue;
             }
 
-            $a = WorkerAssignment::create();
+            /** @var \SilverStripe\ORM\DataObject $a */
+            $a = $class::create();
             $a->Status = $status;
             if ($a->hasField('AssignedDate')) $a->AssignedDate = $date->format('Y-m-d');
             if ($a->hasField('WorkerID'))     $a->WorkerID     = $worker->ID;
             if ($a->hasField('RevirID'))      $a->RevirID      = $revir->ID;
             $a->write();
+            $count++;
         }
 
-        $this->out->writeln('  created ' . count($defs) . ' assignments');
+        $this->out->writeln("  created {$count} assignments");
     }
 
     // ─── Time Tracking ────────────────────────────────────────────────────────
@@ -375,8 +447,15 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating time tracking entries...');
 
-        $monday = new DateTime('monday this week');
-        $count  = 0;
+        if (!class_exists(self::CLASS_TIME_TRACKING) || !class_exists(self::CLASS_WORKER_ASSIGN)) {
+            $this->out->writeln('  SKIP   TimeTracking or WorkerAssignment class not found');
+            return;
+        }
+
+        $ttClass    = self::CLASS_TIME_TRACKING;
+        $assignClass = self::CLASS_WORKER_ASSIGN;
+        $monday     = new DateTime('monday this week');
+        $count      = 0;
 
         foreach ([
             ['worker1', 'erdgeschoss',   '07:05', '09:58'],
@@ -393,18 +472,19 @@ class SeedDataTask extends BuildTask
             foreach ([0, 1] as $dayOffset) {
                 $date = (clone $monday)->modify("+{$dayOffset} days")->format('Y-m-d');
 
-                $assignment = WorkerAssignment::get()->filter([
+                $assignment = $assignClass::get()->filter([
                     'WorkerID'     => $worker->ID,
                     'RevirID'      => $revir->ID,
                     'AssignedDate' => $date,
                 ])->first();
 
-                $tt = TimeTracking::create();
-                if ($tt->hasField('WorkerID'))    $tt->WorkerID    = $worker->ID;
-                if ($tt->hasField('RevirID'))     $tt->RevirID     = $revir->ID;
-                if ($tt->hasField('StartTime'))   $tt->StartTime   = "{$date} {$startH}:00";
-                if ($tt->hasField('EndTime'))     $tt->EndTime     = "{$date} {$endH}:00";
-                if ($tt->hasField('Status'))      $tt->Status      = 'Completed';
+                /** @var \SilverStripe\ORM\DataObject $tt */
+                $tt = $ttClass::create();
+                if ($tt->hasField('WorkerID'))  $tt->WorkerID  = $worker->ID;
+                if ($tt->hasField('RevirID'))   $tt->RevirID   = $revir->ID;
+                if ($tt->hasField('StartTime')) $tt->StartTime = "{$date} {$startH}:00";
+                if ($tt->hasField('EndTime'))   $tt->EndTime   = "{$date} {$endH}:00";
+                if ($tt->hasField('Status'))    $tt->Status    = 'Completed';
                 if ($assignment && $tt->hasField('AssignmentID')) {
                     $tt->AssignmentID = $assignment->ID;
                 }
@@ -426,25 +506,29 @@ class SeedDataTask extends BuildTask
         $revir  = $this->revirs['erdgeschoss'] ?? null;
 
         if (!$worker || !$revir) {
-            $this->out->writeln('  SKIP — missing worker1 or erdgeschoss');
+            $this->out->writeln('  SKIP — missing worker1 or erdgeschoss revir');
             return;
         }
 
         $monday     = new DateTime('monday this week');
-        $assignment = WorkerAssignment::get()->filter([
-            'WorkerID'     => $worker->ID,
-            'RevirID'      => $revir->ID,
-            'AssignedDate' => $monday->format('Y-m-d'),
-        ])->first();
+        $assignment = null;
 
-        $ci = RevirCheckIn::create();
+        if (class_exists(self::CLASS_WORKER_ASSIGN)) {
+            $assignment = (self::CLASS_WORKER_ASSIGN)::get()->filter([
+                'WorkerID'     => $worker->ID,
+                'RevirID'      => $revir->ID,
+                'AssignedDate' => $monday->format('Y-m-d'),
+            ])->first();
+        }
+
+        $ci            = RevirCheckIn::create();
         $ci->ScannedAt = $monday->format('Y-m-d') . ' 07:06:23';
         $ci->IPAddress = '192.168.1.42';
         $ci->UserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)';
         $ci->Latitude  = 52.516275;
         $ci->Longitude = 13.377704;
-        if ($ci->hasField('WorkerID'))    $ci->WorkerID    = $worker->ID;
-        if ($ci->hasField('RevirID'))     $ci->RevirID     = $revir->ID;
+        if ($ci->hasField('WorkerID')) $ci->WorkerID = $worker->ID;
+        if ($ci->hasField('RevirID'))  $ci->RevirID  = $revir->ID;
         if ($assignment && $ci->hasField('AssignmentID')) {
             $ci->AssignmentID = $assignment->ID;
         }
@@ -459,6 +543,14 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating shift swap request...');
 
+        if (!class_exists(self::CLASS_SHIFT_SWAP) || !class_exists(self::CLASS_WORKER_ASSIGN)) {
+            $this->out->writeln('  SKIP   ShiftSwapRequest or WorkerAssignment class not found');
+            return;
+        }
+
+        $swapClass   = self::CLASS_SHIFT_SWAP;
+        $assignClass = self::CLASS_WORKER_ASSIGN;
+
         $w1 = $this->members['worker1'] ?? null;
         $w2 = $this->members['worker2'] ?? null;
 
@@ -470,15 +562,16 @@ class SeedDataTask extends BuildTask
         $wednesday = (new DateTime('monday this week'))->modify('+2 days');
         $dateStr   = $wednesday->format('Y-m-d');
 
-        $a1 = WorkerAssignment::get()->filter(['WorkerID' => $w1->ID, 'AssignedDate' => $dateStr])->first();
-        $a2 = WorkerAssignment::get()->filter(['WorkerID' => $w2->ID, 'AssignedDate' => $dateStr])->first();
+        $a1 = $assignClass::get()->filter(['WorkerID' => $w1->ID, 'AssignedDate' => $dateStr])->first();
+        $a2 = $assignClass::get()->filter(['WorkerID' => $w2->ID, 'AssignedDate' => $dateStr])->first();
 
         if (!$a1 || !$a2) {
             $this->out->writeln('  SKIP — no assignments found for Wednesday');
             return;
         }
 
-        $swap = ShiftSwapRequest::create();
+        /** @var \SilverStripe\ORM\DataObject $swap */
+        $swap         = $swapClass::create();
         $swap->Status = 'Pending';
         $swap->Reason = 'Privatni termin — liječnik. Molim zamjenu sa Thomasom.';
         if ($swap->hasField('RequestedByID'))   $swap->RequestedByID   = $w1->ID;
@@ -496,7 +589,14 @@ class SeedDataTask extends BuildTask
     {
         $this->out->writeln('Creating client ratings...');
 
+        if (!class_exists(self::CLASS_CLIENT_RATING)) {
+            $this->out->writeln('  SKIP   ClientRating class not found');
+            return;
+        }
+
+        $class  = self::CLASS_CLIENT_RATING;
         $client = $this->members['client'] ?? null;
+
         if (!$client) {
             $this->out->writeln('  SKIP — no client member');
             return;
@@ -513,9 +613,10 @@ class SeedDataTask extends BuildTask
                 continue;
             }
 
-            $date   = (new DateTime("-{$daysAgo} days"))->format('Y-m-d H:i:s');
-            $rating = ClientRating::create();
+            $date = (new DateTime("-{$daysAgo} days"))->format('Y-m-d H:i:s');
 
+            /** @var \SilverStripe\ORM\DataObject $rating */
+            $rating = $class::create();
             if ($rating->hasField('ClientID')) $rating->ClientID = $client->ID;
             if ($rating->hasField('RevirID'))  $rating->RevirID  = $revir->ID;
             if ($rating->hasField('Rating'))   $rating->Rating   = $stars;
