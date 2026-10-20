@@ -8,6 +8,7 @@ use SilverStripe\Dev\BuildTask;
 use SilverStripe\PolyExecution\PolyOutput;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use YouWillLikeIT\Cleaning\DataObjects\Revir;
 
 /**
  * GenerateRevirTokensTask — popunjava QRToken za sve Revire koji ga nemaju.
@@ -16,9 +17,6 @@ use Symfony\Component\Console\Input\InputInterface;
  *   vendor/bin/sake dev/tasks/YouWillLikeIT-Cleaning-Tasks-GenerateRevirTokensTask
  *
  * Idempotentno: preskače Revire koji već imaju token.
- *
- * Napomena: Revir klasa živi u glavnoj aplikaciji, ne u ovom modulu.
- * Task se gracefully prilagođava ako klasa nije dostupna.
  */
 class GenerateRevirTokensTask extends BuildTask
 {
@@ -26,21 +24,12 @@ class GenerateRevirTokensTask extends BuildTask
 
     protected static string $description = 'Popunjava QRToken (32-byte hex) za sve Revire koji nemaju token. Idempotentno.';
 
-    private const CLASS_REVIR = 'YouWillLikeIT\\Cleaning\\DataObjects\\Revir';
-
     protected function execute(InputInterface $input, PolyOutput $output): int
     {
         $output->writeln('Generating QR tokens for Revirs...');
         $output->writeln('');
 
-        if (!class_exists(self::CLASS_REVIR)) {
-            $output->writeln('ERROR: Revir class not found (' . self::CLASS_REVIR . ')');
-            $output->writeln('Make sure the Revir DataObject is defined in your application.');
-            return Command::FAILURE;
-        }
-
-        $revirClass = self::CLASS_REVIR;
-        $revirs     = $revirClass::get();
+        $revirs = Revir::get();
 
         if (!$revirs->exists()) {
             $output->writeln('No Revirs found in database. Nothing to do.');
