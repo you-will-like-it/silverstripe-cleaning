@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace YouWillLikeIT\Cleaning\Services;
 
-use SilverStripe\Core\Injectable;
+use SilverStripe\Core\Injector\Injectable;
 
 /**
  * SicknessService — provjera da li je radnik odsutan određenog dana.

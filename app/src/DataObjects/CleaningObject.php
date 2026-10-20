@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace YouWillLikeIT\Cleaning\DataObjects;
 
 use SilverStripe\ORM\DataObject;
-use SilverStripe\ORM\HasManyList;
 use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 

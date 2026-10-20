@@ -10,7 +10,6 @@ use YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment;
 use YouWillLikeIT\Cleaning\Services\NotificationService;
 use YouWillLikeIT\Cleaning\Services\SicknessService;
 use SilverStripe\Dev\BuildTask;
-use SilverStripe\ORM\DB;
 use SilverStripe\PolyExecution\PolyOutput;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

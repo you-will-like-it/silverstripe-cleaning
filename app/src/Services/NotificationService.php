@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace YouWillLikeIT\Cleaning\Services;
 
-use SilverStripe\Core\Injectable;
+use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\Security\Member;
 use YouWillLikeIT\Cleaning\DataObjects\WorkerAssignment;
 
