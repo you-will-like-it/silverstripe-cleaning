@@ -36,15 +36,15 @@ class ManagerPortalController extends Controller
 {
     private static string $url_segment = 'manager';
 
-    /** @var array<string,string> */
+    /** @var array<string,bool> */
     private static array $allowed_actions = [
-        'index',
-        'workers',
-        'revirs',
-        'swaps',
-        'approveSwap',
-        'minijob',
-        'apiSummary',
+        'index'       => true,
+        'workers'     => true,
+        'revirs'      => true,
+        'swaps'       => true,
+        'approveSwap' => true,
+        'minijob'     => true,
+        'apiSummary'  => true,
     ];
 
     // ── Bootstrap ─────────────────────────────────────────────────────────

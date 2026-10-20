@@ -31,8 +31,8 @@ class ICalController extends Controller
 
     /** @var array<string,string> */
     private static array $allowed_actions = [
-        'ics',
-        'index',
+        'ics'   => true,
+        'index' => true,
     ];
 
     protected function init(): void

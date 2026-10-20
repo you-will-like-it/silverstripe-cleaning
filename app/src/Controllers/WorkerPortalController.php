@@ -36,16 +36,16 @@ class WorkerPortalController extends Controller
 {
     private static string $url_segment = 'portal';
 
-    /** @var array<string,string> */
+    /** @var array<string,bool> */
     private static array $allowed_actions = [
-        'index',
-        'schedule',
-        'checkin',
-        'clockIn',
-        'clockOut',
-        'swaps',
-        'requestSwap',
-        'profile',
+        'index'        => true,
+        'schedule'     => true,
+        'checkin'      => true,
+        'clockIn'      => true,
+        'clockOut'     => true,
+        'swaps'        => true,
+        'requestSwap'  => true,
+        'profile'      => true,
     ];
 
     /** @var array<int,string> */

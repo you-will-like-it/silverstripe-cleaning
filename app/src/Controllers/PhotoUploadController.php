@@ -30,9 +30,9 @@ class PhotoUploadController extends Controller
 
     /** @var array<string,string> */
     private static array $allowed_actions = [
-        'upload',
-        'list',
-        'delete',
+        'upload' => true,
+        'list'   => true,
+        'delete' => true,
     ];
 
     protected function init(): void

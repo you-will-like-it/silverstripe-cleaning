@@ -32,8 +32,8 @@ class RevirQRController extends Controller
 
     /** @var array<string,string> */
     private static array $allowed_actions = [
-        'scan',
-        'confirm',
+        'scan'    => true,
+        'confirm' => true,
     ];
 
     // ── Rate limiting ─────────────────────────────────────────────────────
