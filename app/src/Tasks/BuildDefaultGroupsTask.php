@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace YouWillLikeIT\Cleaning\Tasks;
 
 use SilverStripe\Dev\BuildTask;
+use SilverStripe\PolyExecution\PolyOutput;
 use SilverStripe\Security\Group;
 use SilverStripe\Security\Permission;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
 
 /**
  * BuildDefaultGroupsTask — kreira sve potrebne grupe i permisije za modul.
@@ -18,14 +21,12 @@ use SilverStripe\Security\Permission;
  */
 class BuildDefaultGroupsTask extends BuildTask
 {
-    private static string $segment = 'YouWillLikeIT-Cleaning-Tasks-BuildDefaultGroupsTask';
+    protected string $title = 'Build Default Groups — Reinigung SaaS';
 
-    protected $title = 'Build Default Groups — Reinigung SaaS';
-
-    protected $description = 'Kreira grupe SUPER_ADMIN, COMPANY_ADMIN, AREA_MANAGER, WORKER, CLIENT s odgovarajućim permisijama. Idempotentno.';
+    protected static string $description = 'Kreira grupe SUPER_ADMIN, COMPANY_ADMIN, AREA_MANAGER, WORKER, CLIENT s odgovarajućim permisijama. Idempotentno.';
 
     /**
-     * Definicija grupa: code → [title, permission_code, description]
+     * Definicija grupa: code → [title, permission, description]
      *
      * @var array<string, array{title: string, permission: string, description: string}>
      */
@@ -57,12 +58,12 @@ class BuildDefaultGroupsTask extends BuildTask
         ],
     ];
 
-    public function run($request): void
+    protected function execute(InputInterface $input, PolyOutput $output): int
     {
-        $this->output('🔧 BuildDefaultGroupsTask — Reinigung SaaS');
-        $this->output('');
+        $output->writeln('Building default groups for Reinigung SaaS...');
+        $output->writeln('');
 
-        $created = 0;
+        $created  = 0;
         $existing = 0;
 
         foreach (self::GROUPS as $code => $def) {
@@ -70,9 +71,8 @@ class BuildDefaultGroupsTask extends BuildTask
 
             if ($group) {
                 $existing++;
-                $this->output("   ⏭  Postoji: {$def['title']} (Code: {$code}, ID: {$group->ID})");
-                // Osiguraj da permisija postoji čak i ako je grupa stara
                 $this->ensurePermission($group->ID, $def['permission']);
+                $output->writeln("  SKIP   {$def['title']} (code: {$code}, ID: {$group->ID}) — already exists");
                 continue;
             }
 
@@ -85,16 +85,15 @@ class BuildDefaultGroupsTask extends BuildTask
             Permission::grant($group->ID, $def['permission']);
 
             $created++;
-            $this->output("   ✓  Kreirana: {$def['title']} (Code: {$code}, ID: {$group->ID}, Permission: {$def['permission']})");
+            $output->writeln("  CREATE {$def['title']} (code: {$code}, ID: {$group->ID}, perm: {$def['permission']})");
         }
 
-        $this->output('');
-        $this->output("✅ Završeno — kreirano: {$created}, već postojalo: {$existing}");
+        $output->writeln('');
+        $output->writeln("Done. Created: {$created}, already existed: {$existing}");
+
+        return Command::SUCCESS;
     }
 
-    /**
-     * Provjeri da permisija postoji za grupu; ako ne, dodaj je.
-     */
     private function ensurePermission(int $groupID, string $permCode): void
     {
         $exists = Permission::get()->filter([
@@ -105,12 +104,5 @@ class BuildDefaultGroupsTask extends BuildTask
         if (!$exists) {
             Permission::grant($groupID, $permCode);
         }
-    }
-
-    private function output(string $message): void
-    {
-        echo isset($_SERVER['REQUEST_URI'])
-            ? $message . '<br>' . PHP_EOL
-            : $message . PHP_EOL;
     }
 }

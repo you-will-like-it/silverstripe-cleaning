@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace YouWillLikeIT\Cleaning\Tasks;
 
 use SilverStripe\Dev\BuildTask;
+use SilverStripe\PolyExecution\PolyOutput;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
 use YouWillLikeIT\Cleaning\DataObjects\Revir;
 
 /**
@@ -17,23 +20,20 @@ use YouWillLikeIT\Cleaning\DataObjects\Revir;
  */
 class GenerateRevirTokensTask extends BuildTask
 {
-    private static string $segment = 'YouWillLikeIT-Cleaning-Tasks-GenerateRevirTokensTask';
+    protected string $title = 'Generate Revir QR Tokens — Reinigung SaaS';
 
-    protected $title = 'Generate Revir QR Tokens — Reinigung SaaS';
+    protected static string $description = 'Popunjava QRToken (32-byte hex) za sve Revire koji nemaju token. Idempotentno.';
 
-    protected $description = 'Popunjava QRToken (32-byte hex) za sve Revire koji nemaju token. Idempotentno — preskače postojeće tokene.';
-
-    public function run($request): void
+    protected function execute(InputInterface $input, PolyOutput $output): int
     {
-        $this->output('🔑 GenerateRevirTokensTask — Reinigung SaaS');
-        $this->output('');
+        $output->writeln('Generating QR tokens for Revirs...');
+        $output->writeln('');
 
-        /** @var Revir[] $revirs */
         $revirs = Revir::get();
 
         if (!$revirs->exists()) {
-            $this->output('ℹ️  Nema revira u bazi. Ništa za raditi.');
-            return;
+            $output->writeln('No Revirs found in database. Nothing to do.');
+            return Command::SUCCESS;
         }
 
         $generated = 0;
@@ -42,34 +42,20 @@ class GenerateRevirTokensTask extends BuildTask
         foreach ($revirs as $revir) {
             if (!empty($revir->QRToken)) {
                 $skipped++;
-                $this->output("   ⏭  Preskočen: [{$revir->ID}] {$revir->Name} (token već postoji)");
+                $output->writeln("  SKIP   [{$revir->ID}] {$revir->Name} — token already exists");
                 continue;
             }
 
-            $token = bin2hex(random_bytes(32));
-
-            // Direktan SQL update da zaobiđemo onBeforeWrite logiku
-            // i izbjegnemo nepotrebno diranje UpdatedAt / audit loga
-            $revir->QRToken = $token;
+            $revir->QRToken = bin2hex(random_bytes(32));
             $revir->write();
 
             $generated++;
-            $this->output("   ✓  [{$revir->ID}] {$revir->Name} → {$token}");
+            $output->writeln("  CREATE [{$revir->ID}] {$revir->Name} → {$revir->QRToken}");
         }
 
-        $this->output('');
-        $this->output("✅ Završeno — generisano: {$generated}, preskočeno (već imaju token): {$skipped}");
+        $output->writeln('');
+        $output->writeln("Done. Generated: {$generated}, skipped (had token): {$skipped}");
 
-        if ($generated > 0) {
-            $this->output('');
-            $this->output('ℹ️  QR kodovi su sada dostupni u CMS-u pod Reviri → QR Kod kolona.');
-        }
-    }
-
-    private function output(string $message): void
-    {
-        echo isset($_SERVER['REQUEST_URI'])
-            ? $message . '<br>' . PHP_EOL
-            : $message . PHP_EOL;
+        return Command::SUCCESS;
     }
 }
